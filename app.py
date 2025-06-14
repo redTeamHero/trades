@@ -1,3 +1,4 @@
+
 import os
 from flask import Flask, request, redirect
 from scrape import scrape_and_group_by_limit
@@ -5,7 +6,7 @@ import stripe
 import math
 
 app = Flask(__name__)
-stripe.api_key = "your_stripe_secret_key"
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 
 limit_buckets = {
     '0-2500': (0, 2500),
@@ -16,29 +17,29 @@ limit_buckets = {
 
 @app.route('/')
 def index():
-    html = """
+    html = '''
     <html>
     <head>
-        <meta charset='UTF-8'>
+        <meta charset="UTF-8">
         <title>Select a Credit Limit Range</title>
         <style>
-            body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f8; padding: 60px 20px; text-align: center; }
-            h1 { font-size: 32px; margin-bottom: 40px; }
-            .range-options { display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; }
-            .range-box { background: white; border: 2px solid #4a90e2; border-radius: 10px; padding: 25px 40px; font-size: 18px; color: #4a90e2; text-decoration: none; transition: 0.2s; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-            .range-box:hover { background-color: #4a90e2; color: white; transform: translateY(-4px); }
+            body {{ font-family: 'Segoe UI', sans-serif; background-color: #f4f6f8; padding: 60px 20px; text-align: center; }}
+            h1 {{ font-size: 32px; margin-bottom: 40px; }}
+            .range-options {{ display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; }}
+            .range-box {{ background: white; border: 2px solid #4a90e2; border-radius: 10px; padding: 25px 40px; font-size: 18px; color: #4a90e2; text-decoration: none; transition: 0.2s; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }}
+            .range-box:hover {{ background-color: #4a90e2; color: white; transform: translateY(-4px); }}
         </style>
     </head>
     <body>
         <h1>Select a Credit Limit Range</h1>
-        <div class='range-options'>
-            <a href='/banks?range=0-2500' class='range-box'>$0 – $2,500</a>
-            <a href='/banks?range=2501-5000' class='range-box'>$2,501 – $5,000</a>
-            <a href='/banks?range=5001-10000' class='range-box'>$5,001 – $10,000</a>
-            <a href='/banks?range=10001+' class='range-box'>$10,001+</a>
+        <div class="range-options">
+            <a href="/banks?range=0-2500" class="range-box">$0 – $2,500</a>
+            <a href="/banks?range=2501-5000" class="range-box">$2,501 – $5,000</a>
+            <a href="/banks?range=5001-10000" class="range-box">$5,001 – $10,000</a>
+            <a href="/banks?range=10001+" class="range-box">$10,001+</a>
         </div>
     </body></html>
-    """
+    '''
     return html
 
 @app.route('/banks')
@@ -65,7 +66,8 @@ def show_tradelines():
     end = start + 20
     items = all_items[start:end]
 
-    html = f"<html><body><h1>{bank} Tradelines in {selected_range}</h1><div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;'>"
+    html = f"<html><body><h1>{bank} Tradelines in {selected_range}</h1>"
+    html += "<div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;'>"
     for item in items:
         html += "<div style='border:1px solid #ccc;padding:15px;border-radius:10px;background:#fff;'>"
         html += f"<h3>{item['bank']}</h3>"
