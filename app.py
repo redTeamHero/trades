@@ -6,7 +6,7 @@ import stripe
 import math
 
 app = Flask(__name__)
-stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY").stripe()
 
 limit_buckets = {
     '0-2500': (0, 2500),
