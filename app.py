@@ -5,7 +5,7 @@ import stripe
 import math
 
 app = Flask(__name__)
-stripe.api_key = "pk_live_51QktmBKIz3f1Y2XMgQRdYnFUSaw4V8m3RLuNRh8ZzRblq5yLY06AU2MjINw1pjYGQieud9TNrilmzHxfYIWuW3on00uzEjow9H"
+stripe.api_key = "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"
 
 limit_buckets = {
     '0-2500': (0, 2500),
@@ -65,7 +65,25 @@ def show_tradelines():
     end = start + 20
     items = all_items[start:end]
 
-    html = f"<html><body><h1>{bank} Tradelines in {selected_range}</h1><div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;'>"
+    html = f"
+<html>
+<head>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f5f8fa; padding: 30px; }
+        h1 { color: #333; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; }
+        .card { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.07); transition: 0.3s; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; font-size: 20px; color: #0070f3; }
+        .card p { margin: 5px 0; color: #444; font-size: 15px; }
+        .card a { display: inline-block; margin-top: 10px; padding: 10px 16px; background: #0070f3; color: #fff; border-radius: 6px; text-decoration: none; font-weight: bold; }
+        .card a:hover { background: #005dc1; }
+    </style>
+</head>
+<body>
+    <h1>{bank} Tradelines in {selected_range}</h1>
+    <div class='grid'>
+"
     for item in items:
         html += "<div style='border:1px solid #ccc;padding:15px;border-radius:10px;background:#fff;'>"
         html += f"<h3>{item['bank']}</h3>"
