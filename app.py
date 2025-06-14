@@ -65,8 +65,25 @@ def show_tradelines():
     end = start + 20
     items = all_items[start:end]
 
-    html = f"
+    html = f"""
 <html>
+<head>
+    <style>
+        body {{ font-family: 'Segoe UI', sans-serif; background-color: #f5f8fa; padding: 30px; }}
+        h1 {{ color: #333; margin-bottom: 20px; }}
+        .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; }}
+        .card {{ background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.07); transition: 0.3s; }}
+        .card:hover {{ transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }}
+        .card h3 {{ margin-top: 0; font-size: 20px; color: #0070f3; }}
+        .card p {{ margin: 5px 0; color: #444; font-size: 15px; }}
+        .card a {{ display: inline-block; margin-top: 10px; padding: 10px 16px; background: #0070f3; color: #fff; border-radius: 6px; text-decoration: none; font-weight: bold; }}
+        .card a:hover {{ background: #005dc1; }}
+    </style>
+</head>
+<body>
+    <h1>{{bank}} Tradelines in {{selected_range}}</h1>
+    <div class='grid'>
+"""
 <head>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f5f8fa; padding: 30px; }
