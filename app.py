@@ -25,15 +25,8 @@ HOMEPAGE_HTML = """
 <head>
     <title>Tradeline Marketplace</title>
     <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            margin: 20px;
-            background-color: #f2f4f8;
-        }
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-        }
+        body { font-family: 'Segoe UI', sans-serif; margin: 20px; background-color: #f2f4f8; }
+        h1 { text-align: center; color: #2c3e50; }
         .filter-box {
             background: #ffffff;
             padding: 15px;
@@ -42,7 +35,7 @@ HOMEPAGE_HTML = """
             margin-bottom: 25px;
             text-align: center;
         }
-        .filter-box select, .filter-box input {
+        .filter-box select {
             padding: 8px;
             margin: 5px;
             border: 1px solid #ccc;
@@ -77,15 +70,27 @@ HOMEPAGE_HTML = """
         }
     </style>
     <script>
-        function updateFilterField() {
-            const filterType = document.getElementById('filter_type').value;
-            const placeholderMap = {
-                'bank': 'e.g., Chase',
-                'price': 'e.g., < 500',
-                'limit': 'e.g., > 5000',
-                'age': 'e.g., 2020 or < 2019'
-            };
-            document.getElementById('filter_value').placeholder = placeholderMap[filterType] || '';
+        const optionsMap = {
+            'bank': ['Chase', 'Bank of America', 'Capital One', 'Discover'],
+            'price': ['< 500', '500 - 1000', '> 1000'],
+            'limit': ['< 2500', '2501 - 5000', '5001 - 10000', '> 10000'],
+            'age': ['2024', '2023', '2022', '< 2022']
+        };
+
+        function updateValueDropdown() {
+            const typeSelect = document.getElementById('filter_type');
+            const valueSelect = document.getElementById('filter_value');
+            const selectedType = typeSelect.value;
+
+            valueSelect.innerHTML = '';
+            if (optionsMap[selectedType]) {
+                optionsMap[selectedType].forEach(val => {
+                    const option = document.createElement('option');
+                    option.value = val.toLowerCase();
+                    option.text = val;
+                    valueSelect.appendChild(option);
+                });
+            }
         }
     </script>
 </head>
@@ -95,7 +100,7 @@ HOMEPAGE_HTML = """
     <div class="filter-box">
         <form method="get">
             <label>Filter By:
-                <select name="filter_type" id="filter_type" onchange="updateFilterField()">
+                <select name="filter_type" id="filter_type" onchange="updateValueDropdown()">
                     <option value="">-- Select --</option>
                     <option value="bank" {% if filter_type == 'bank' %}selected{% endif %}>Bank Name</option>
                     <option value="price" {% if filter_type == 'price' %}selected{% endif %}>Price</option>
@@ -103,7 +108,13 @@ HOMEPAGE_HTML = """
                     <option value="age" {% if filter_type == 'age' %}selected{% endif %}>Age (Opened)</option>
                 </select>
             </label>
-            <input type="text" name="filter_value" id="filter_value" value="{{ filter_value or '' }}" placeholder="">
+
+            <label>
+                <select name="filter_value" id="filter_value">
+                    <!-- Options added dynamically by JS -->
+                </select>
+            </label>
+
             <button type="submit">Apply Filter</button>
             <a href="/" style="margin-left: 10px;">Reset</a>
         </form>
@@ -128,10 +139,10 @@ HOMEPAGE_HTML = """
                 <tr>
                     <td>{{ item['bank'] }}</td>
                     <td>${{ "{:,}".format(item['limit']) }}</td>
-                    <td>{{ item['text'].split('\\n')[2].split(': ')[1] }}</td>
-                    <td>{{ item['text'].split('\\n')[3].split(': ')[1] }}</td>
-                    <td>{{ item['text'].split('\\n')[4].split(': ')[1] }}</td>
-                    <td>{{ item['text'].split('\\n')[5].split(': ')[1] }}</td>
+                    <td>{{ item['opened'] }}</td>
+                    <td>{{ item['deadline'] }}</td>
+                    <td>{{ item['reporting'] }}</td>
+                    <td>{{ item['availability'] }}</td>
                     <td>${{ "%.2f"|format(item['price']) }}</td>
                     <td><a href="/buy?bank={{ item['bank'] | urlencode }}&price={{ item['price'] }}" class="buy-btn">Buy Now</a></td>
                 </tr>
@@ -139,6 +150,13 @@ HOMEPAGE_HTML = """
         {% endfor %}
         </tbody>
     </table>
+
+    <script>
+        // auto-trigger preset population on page load if filter_type is set
+        document.addEventListener("DOMContentLoaded", function() {
+            updateValueDropdown();
+        });
+    </script>
 </body>
 </html>
 """
