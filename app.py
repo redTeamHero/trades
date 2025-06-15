@@ -194,8 +194,10 @@ def homepage():
         for t in tradelines:
             val = filter_value
 
-            if filter_type == "bank" and val not in t['bank'].lower():
-                continue
+            if filter_type == "bank":
+                if 'bank' not in t or t['bank'].lower() != val:
+                    continue
+
             elif filter_type == "price":
                 try:
                     if val.startswith('<'):
