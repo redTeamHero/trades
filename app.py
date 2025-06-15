@@ -94,15 +94,21 @@ HOMEPAGE_HTML = """
     <div class="filter-box">
         <form method="get">
             <label>Filter By:
-                <select name="filter_type" id="filter_type" onchange="updateFilterField()">
+                <select name="filter_type" id="filter_type" onchange="updateValueDropdown()">
                     <option value="">-- Select --</option>
                     <option value="bank" {% if filter_type == 'bank' %}selected{% endif %}>Bank Name</option>
                     <option value="price" {% if filter_type == 'price' %}selected{% endif %}>Price</option>
                     <option value="limit" {% if filter_type == 'limit' %}selected{% endif %}>Credit Limit</option>
-                    <option value="age" {% if filter_type == 'age' %}selected{% endif %}>Age (Opened)</option>
+                    <option value="age" {% if filter_type == 'age' %}selected{% endif %}>Age</option>
                 </select>
             </label>
-            <input type="text" name="filter_value" id="filter_value" value="{{ filter_value or '' }}" placeholder="">
+    
+            <label>
+                <select name="filter_value" id="filter_value">
+                    <!-- Options loaded dynamically by JS -->
+                </select>
+            </label>
+    
             <button type="submit">Apply Filter</button>
             <a href="/" style="margin-left: 10px;">Reset</a>
         </form>
@@ -147,7 +153,8 @@ def homepage():
     filter_type = request.args.get("filter_type", "")
     filter_value = request.args.get("filter_value", "").strip().lower()
 
-    all_buckets = scrape_and_group_by_limit()
+    all_buckets, bank_options, year_options = scrape_and_group_by_limit()
+
     filtered_buckets = {}
 
     for limit_range, tradelines in all_buckets.items():
@@ -190,8 +197,13 @@ def homepage():
             filtered.append(t)
         if filtered:
             filtered_buckets[limit_range] = filtered
-
-    return render_template_string(HOMEPAGE_HTML, data=filtered_buckets, filter_type=filter_type, filter_value=filter_value)
+            
+    return render_template_string(HOMEPAGE_HTML, data=filtered_buckets,
+        filter_type=filter_type,
+        filter_value=filter_value,
+        bank_options=bank_options,
+        year_options=year_options
+    )
 
 
 @app.route('/buy')
