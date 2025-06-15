@@ -36,7 +36,14 @@ def scrape_and_group_by_limit():
             if not price_match:
                 continue
             base_price = float(price_match.group(1).replace(",", ""))
-            final_price = base_price + 100
+
+            # Corrected markup logic
+            if base_price < 500:
+                final_price = base_price + 100
+            elif base_price <= 1000:
+                final_price = base_price + 200
+            else:
+                final_price = base_price + 300
 
             formatted = (
                 f"🏦 Bank: {bank_name}\n"
@@ -51,8 +58,12 @@ def scrape_and_group_by_limit():
             item = {
                 'bank': bank_name,
                 'text': formatted,
-                'price': final_price,
-                'limit': credit_limit
+                'price': round(final_price, 2),
+                'limit': credit_limit,
+                'opened': date_opened,
+                'deadline': purchase_by,
+                'reporting': reporting_period,
+                'availability': availability
             }
 
             if credit_limit <= 2500:
