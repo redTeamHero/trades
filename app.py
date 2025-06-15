@@ -1,7 +1,7 @@
 
 import os
 from flask import Flask, request, redirect, render_template_string
-from scrape import scrape_and_group_by_limit
+from tradeline_scraper import scrape_tradelines
 import stripe
 import smtplib
 from email.mime.text import MIMEText
@@ -134,7 +134,7 @@ HOMEPAGE_HTML = """
             </tr>
         </thead>
         <tbody>
-        {% for limit_range, tradelines in data.items() %}
+        {% for item in data %}
             {% for item in tradelines %}
                 <tr>
                     <td>{{ item['bank'] }}</td>
@@ -166,51 +166,50 @@ def homepage():
     filter_type = request.args.get("filter_type", "")
     filter_value = request.args.get("filter_value", "").strip().lower()
 
-    all_buckets = scrape_and_group_by_limit()
-    filtered_buckets = {}
+    all_tradelines = scrape_tradelines()
+    filtered = []
 
-    for limit_range, tradelines in all_buckets.items():
-        filtered = []
-        for t in tradelines:
-            val = filter_value
+    for t in all_tradelines:
+        val = filter_value
 
-            if filter_type == "bank" and val not in t['bank'].lower():
-                continue
-            elif filter_type == "price":
-                try:
-                    if val.startswith('<'):
-                        if not t['price'] < float(val[1:]): continue
-                    elif val.startswith('>'):
-                        if not t['price'] > float(val[1:]): continue
-                    elif not float(val) == t['price']:
-                        continue
-                except: continue
-            elif filter_type == "limit":
-                try:
-                    if val.startswith('<'):
-                        if not t['limit'] < int(val[1:]): continue
-                    elif val.startswith('>'):
-                        if not t['limit'] > int(val[1:]): continue
-                    elif not int(val) == t['limit']:
-                        continue
-                except: continue
-            elif filter_type == "age":
-                try:
-                    opened_line = t['text'].split('\n')[2]
-                    opened = opened_line.split(": ")[1]  # e.g. "2020 Jun"
-                    year = int(opened.split()[0])
-                    if val.startswith('<'):
-                        if not year < int(val[1:]): continue
-                    elif val.startswith('>'):
-                        if not year > int(val[1:]): continue
-                    elif not int(val) == year:
-                        continue
-                except: continue
+        if not filter_type or not filter_value:
             filtered.append(t)
-        if filtered:
-            filtered_buckets[limit_range] = filtered
+            continue
 
-    return render_template_string(HOMEPAGE_HTML, data=filtered_buckets, filter_type=filter_type, filter_value=filter_value)
+        if filter_type == "bank" and val not in t['bank'].lower():
+            continue
+        elif filter_type == "price":
+            try:
+                if val.startswith('<'):
+                    if not t['price'] < float(val[1:]): continue
+                elif val.startswith('>'):
+                    if not t['price'] > float(val[1:]): continue
+                elif not float(val) == t['price']:
+                    continue
+            except: continue
+        elif filter_type == "limit":
+            try:
+                if val.startswith('<'):
+                    if not t['limit'] < int(val[1:]): continue
+                elif val.startswith('>'):
+                    if not t['limit'] > int(val[1:]): continue
+                elif not int(val) == t['limit']:
+                    continue
+            except: continue
+        elif filter_type == "age":
+            try:
+                year = int(t['opened'].split()[0])
+                if val.startswith('<'):
+                    if not year < int(val[1:]): continue
+                elif val.startswith('>'):
+                    if not year > int(val[1:]): continue
+                elif not int(val) == year:
+                    continue
+            except: continue
+
+        filtered.append(t)
+
+    return render_template_string(HOMEPAGE_HTML, data=filtered, filter_type=filter_type, filter_value=filter_value)
 
 
 @app.route('/buy')
