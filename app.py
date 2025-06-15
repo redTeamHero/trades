@@ -144,6 +144,38 @@ HOMEPAGE_HTML = """
         {% endfor %}
         </tbody>
     </table>
+    <script>
+    const bankOptions = {{ bank_options|tojson }};
+    const yearOptions = {{ year_options|tojson }};
+
+    const optionsMap = {
+        'bank': bankOptions,
+        'price': ['< 500', '500 - 1000', '> 1000'],
+        'limit': ['< 2500', '2501 - 5000', '5001 - 10000', '> 10000'],
+        'age': yearOptions.map(y => y.toString()).concat('< 2022')
+    };
+
+    function updateValueDropdown() {
+        const typeSelect = document.getElementById('filter_type');
+        const valueSelect = document.getElementById('filter_value');
+        const selectedType = typeSelect.value;
+
+        valueSelect.innerHTML = '';
+
+        if (optionsMap[selectedType]) {
+            optionsMap[selectedType].forEach(val => {
+                const opt = document.createElement('option');
+                opt.value = val.toLowerCase();
+                opt.textContent = val;
+                valueSelect.appendChild(opt);
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', updateValueDropdown);
+</script>
+
+
 </body>
 </html>
 """
