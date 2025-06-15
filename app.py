@@ -194,6 +194,7 @@ def homepage():
 
     return render_template_string(HOMEPAGE_HTML, data=filtered_buckets, filter_type=filter_type, filter_value=filter_value)
 
+
 @app.route('/buy')
 def buy():
     bank = request.args.get("bank")
