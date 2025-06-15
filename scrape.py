@@ -1,7 +1,6 @@
 # Updated homepage route: supports dropdown preset values for price, limit, and age
 
 from flask import Flask, request, render_template_string
-from scrape import scrape_and_group_by_limit
 
 app = Flask(__name__)
 
