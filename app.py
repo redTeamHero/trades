@@ -1,7 +1,7 @@
 
 import os
 from flask import Flask, request, redirect, render_template_string
-from tradeline_scraper import scrape_tradelines
+from scrape import scrape_and_group_by_limit
 import stripe
 import smtplib
 from email.mime.text import MIMEText
@@ -20,197 +20,82 @@ SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "yourpassword")
 orders = []
 
 HOMEPAGE_HTML = """
-<!DOCTYPE html>
 <html>
 <head>
-    <title>Tradeline Marketplace</title>
+    <title>Available Tradelines</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 20px; background-color: #f2f4f8; }
-        h1 { text-align: center; color: #2c3e50; }
-        .filter-box {
-            background: #ffffff;
+        body { font-family: Arial; padding: 20px; background: #f7f7f7; }
+        h2 { margin-top: 40px; }
+        .card {
+            background: white;
             padding: 15px;
+            margin: 10px;
+            border: 1px solid #ddd;
             border-radius: 6px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            margin-bottom: 25px;
-            text-align: center;
+            width: 300px;
+            display: inline-block;
+            vertical-align: top;
         }
-        .filter-box select {
-            padding: 8px;
-            margin: 5px;
-            border: 1px solid #ccc;
+        .card a {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
             border-radius: 4px;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.05);
-        }
-        th, td {
-            padding: 12px;
-            text-align: center;
-            border-bottom: 1px solid #eee;
-        }
-        th {
-            background-color: #34495e;
-            color: white;
-        }
-        tr:hover {
-            background-color: #f9f9f9;
-        }
-        .buy-btn {
-            background-color: #27ae60;
-            color: white;
-            border: none;
-            padding: 8px 14px;
-            border-radius: 5px;
-            text-decoration: none;
-            font-weight: bold;
-        }
+        form { margin-bottom: 20px; }
     </style>
-    <script>
-        const optionsMap = {
-            'bank': ['Chase', 'Bank of America', 'Capital One', 'Discover'],
-            'price': ['< 500', '500 - 1000', '> 1000'],
-            'limit': ['< 2500', '2501 - 5000', '5001 - 10000', '> 10000'],
-            'age': ['2024', '2023', '2022', '< 2022']
-        };
-
-        function updateValueDropdown() {
-            const typeSelect = document.getElementById('filter_type');
-            const valueSelect = document.getElementById('filter_value');
-            const selectedType = typeSelect.value;
-
-            valueSelect.innerHTML = '';
-            if (optionsMap[selectedType]) {
-                optionsMap[selectedType].forEach(val => {
-                    const option = document.createElement('option');
-                    option.value = val.toLowerCase();
-                    option.text = val;
-                    valueSelect.appendChild(option);
-                });
-            }
-        }
-    </script>
 </head>
 <body>
     <h1>Available Tradelines</h1>
+    <form method="get">
+        <label>Limit Range:
+            <select name="limit_range">
+                <option value="">All</option>
+                <option value="0-2500">0–2500</option>
+                <option value="2501-5000">2501–5000</option>
+                <option value="5001-10000">5001–10000</option>
+                <option value="10001+">10001+</option>
+            </select>
+        </label>
+        <label>Bank Name: <input type="text" name="bank" /></label>
+        <button type="submit">Filter</button>
+    </form>
 
-    <div class="filter-box">
-        <form method="get">
-            <label>Filter By:
-                <select name="filter_type" id="filter_type" onchange="updateValueDropdown()">
-                    <option value="">-- Select --</option>
-                    <option value="bank" {% if filter_type == 'bank' %}selected{% endif %}>Bank Name</option>
-                    <option value="price" {% if filter_type == 'price' %}selected{% endif %}>Price</option>
-                    <option value="limit" {% if filter_type == 'limit' %}selected{% endif %}>Credit Limit</option>
-                    <option value="age" {% if filter_type == 'age' %}selected{% endif %}>Age (Opened)</option>
-                </select>
-            </label>
-
-            <label>
-                <select name="filter_value" id="filter_value">
-                    <!-- Options added dynamically by JS -->
-                </select>
-            </label>
-
-            <button type="submit">Apply Filter</button>
-            <a href="/" style="margin-left: 10px;">Reset</a>
-        </form>
-    </div>
-
-    <table>
-        <thead>
-            <tr>
-                <th>Bank Name</th>
-                <th>Credit Limit</th>
-                <th>Date Opened</th>
-                <th>Purchase Deadline</th>
-                <th>Reporting Period</th>
-                <th>Availability</th>
-                <th>Price</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for item in data %}
-            {% for item in tradelines %}
-                <tr>
-                    <td>{{ item['bank'] }}</td>
-                    <td>${{ "{:,}".format(item['limit']) }}</td>
-                    <td>{{ item['opened'] }}</td>
-                    <td>{{ item['deadline'] }}</td>
-                    <td>{{ item['reporting'] }}</td>
-                    <td>{{ item['availability'] }}</td>
-                    <td>${{ "%.2f"|format(item['price']) }}</td>
-                    <td><a href="/buy?bank={{ item['bank'] | urlencode }}&price={{ item['price'] }}" class="buy-btn">Buy Now</a></td>
-                </tr>
-            {% endfor %}
+    {% for limit_range, tradelines in data.items() %}
+        <h2>Limit Range: {{ limit_range }}</h2>
+        {% for item in tradelines %}
+            <div class="card">
+                <pre>{{ item['text'] }}</pre>
+                <a href="/buy?bank={{ item['bank'] | urlencode }}&price={{ item['price'] }}">Buy Now</a>
+            </div>
         {% endfor %}
-        </tbody>
-    </table>
-
-    <script>
-        // auto-trigger preset population on page load if filter_type is set
-        document.addEventListener("DOMContentLoaded", function() {
-            updateValueDropdown();
-        });
-    </script>
+    {% endfor %}
 </body>
 </html>
 """
 
 @app.route('/')
 def homepage():
-    filter_type = request.args.get("filter_type", "")
-    filter_value = request.args.get("filter_value", "").strip().lower()
+    limit_filter = request.args.get("limit_range")
+    bank_filter = request.args.get("bank")
+    all_buckets = scrape_and_group_by_limit()
+    filtered_buckets = {}
 
-    all_tradelines = scrape_tradelines()
-    filtered = []
-
-    for t in all_tradelines:
-        val = filter_value
-
-        if not filter_type or not filter_value:
+    for limit_range, tradelines in all_buckets.items():
+        if limit_filter and limit_range != limit_filter:
+            continue
+        filtered = []
+        for t in tradelines:
+            if bank_filter and bank_filter.lower() not in t['bank'].lower():
+                continue
             filtered.append(t)
-            continue
+        if filtered:
+            filtered_buckets[limit_range] = filtered
 
-        if filter_type == "bank" and val not in t['bank'].lower():
-            continue
-        elif filter_type == "price":
-            try:
-                if val.startswith('<'):
-                    if not t['price'] < float(val[1:]): continue
-                elif val.startswith('>'):
-                    if not t['price'] > float(val[1:]): continue
-                elif not float(val) == t['price']:
-                    continue
-            except: continue
-        elif filter_type == "limit":
-            try:
-                if val.startswith('<'):
-                    if not t['limit'] < int(val[1:]): continue
-                elif val.startswith('>'):
-                    if not t['limit'] > int(val[1:]): continue
-                elif not int(val) == t['limit']:
-                    continue
-            except: continue
-        elif filter_type == "age":
-            try:
-                year = int(t['opened'].split()[0])
-                if val.startswith('<'):
-                    if not year < int(val[1:]): continue
-                elif val.startswith('>'):
-                    if not year > int(val[1:]): continue
-                elif not int(val) == year:
-                    continue
-            except: continue
-
-        filtered.append(t)
-
-    return render_template_string(HOMEPAGE_HTML, data=filtered, filter_type=filter_type, filter_value=filter_value)
-
+    return render_template_string(HOMEPAGE_HTML, data=filtered_buckets)
 
 @app.route('/buy')
 def buy():
