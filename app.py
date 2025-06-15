@@ -25,12 +25,47 @@ HOMEPAGE_HTML = """
 <head>
     <title>Tradeline Marketplace</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 20px; background-color: #f2f4f8; }
-        h1 { text-align: center; color: #2c3e50; }
-        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
-        th, td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; }
-        th { background-color: #34495e; color: white; cursor: pointer; }
-        tr:hover { background-color: #f9f9f9; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 20px;
+            background-color: #f2f4f8;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .filter-box {
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .filter-box select, .filter-box input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background-color: #34495e;
+            color: white;
+        }
+        tr:hover {
+            background-color: #f9f9f9;
+        }
         .buy-btn {
             background-color: #27ae60;
             color: white;
@@ -41,32 +76,66 @@ HOMEPAGE_HTML = """
             font-weight: bold;
         }
     </style>
+    <script>
+        function updateFilterField() {
+            const filterType = document.getElementById('filter_type').value;
+            const placeholderMap = {
+                'bank': 'e.g., Chase',
+                'price': 'e.g., < 500',
+                'limit': 'e.g., > 5000',
+                'age': 'e.g., 2020 or < 2019'
+            };
+            document.getElementById('filter_value').placeholder = placeholderMap[filterType] || '';
+        }
+    </script>
 </head>
 <body>
     <h1>Available Tradelines</h1>
+
+    <div class="filter-box">
+        <form method="get">
+            <label>Filter By:
+                <select name="filter_type" id="filter_type" onchange="updateFilterField()">
+                    <option value="">-- Select --</option>
+                    <option value="bank" {% if filter_type == 'bank' %}selected{% endif %}>Bank Name</option>
+                    <option value="price" {% if filter_type == 'price' %}selected{% endif %}>Price</option>
+                    <option value="limit" {% if filter_type == 'limit' %}selected{% endif %}>Credit Limit</option>
+                    <option value="age" {% if filter_type == 'age' %}selected{% endif %}>Age (Opened)</option>
+                </select>
+            </label>
+            <input type="text" name="filter_value" id="filter_value" value="{{ filter_value or '' }}" placeholder="">
+            <button type="submit">Apply Filter</button>
+            <a href="/" style="margin-left: 10px;">Reset</a>
+        </form>
+    </div>
+
     <table>
         <thead>
             <tr>
-                {% for col, label in headers.items() %}
-                    <th onclick="window.location.href='/?sort={{ col }}&order={{ 'desc' if sort==col and order=='asc' else 'asc' }}'">
-                        {{ label }} {% if sort == col %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
-                    </th>
-                {% endfor %}
+                <th>Bank Name</th>
+                <th>Credit Limit</th>
+                <th>Date Opened</th>
+                <th>Purchase Deadline</th>
+                <th>Reporting Period</th>
+                <th>Availability</th>
+                <th>Price</th>
                 <th>Action</th>
             </tr>
         </thead>
         <tbody>
-        {% for item in all_items %}
-            <tr>
-                <td>{{ item['bank'] }}</td>
-                <td>${{ "{:,}".format(item['limit']) }}</td>
-                <td>{{ item['opened'] }}</td>
-                <td>{{ item['deadline'] }}</td>
-                <td>{{ item['reporting'] }}</td>
-                <td>{{ item['availability'] }}</td>
-                <td>${{ "%.2f"|format(item['price']) }}</td>
-                <td><a href="/buy?bank={{ item['bank'] | urlencode }}&price={{ item['price'] }}" class="buy-btn">Buy Now</a></td>
-            </tr>
+        {% for limit_range, tradelines in data.items() %}
+            {% for item in tradelines %}
+                <tr>
+                    <td>{{ item['bank'] }}</td>
+                    <td>${{ "{:,}".format(item['limit']) }}</td>
+                    <td>{{ item['text'].split('\\n')[2].split(': ')[1] }}</td>
+                    <td>{{ item['text'].split('\\n')[3].split(': ')[1] }}</td>
+                    <td>{{ item['text'].split('\\n')[4].split(': ')[1] }}</td>
+                    <td>{{ item['text'].split('\\n')[5].split(': ')[1] }}</td>
+                    <td>${{ "%.2f"|format(item['price']) }}</td>
+                    <td><a href="/buy?bank={{ item['bank'] | urlencode }}&price={{ item['price'] }}" class="buy-btn">Buy Now</a></td>
+                </tr>
+            {% endfor %}
         {% endfor %}
         </tbody>
     </table>
@@ -76,35 +145,54 @@ HOMEPAGE_HTML = """
 
 @app.route('/')
 def homepage():
-    sort = request.args.get("sort", "price")
-    order = request.args.get("order", "asc")
-    buckets = scrape_and_group_by_limit()
+    filter_type = request.args.get("filter_type", "")
+    filter_value = request.args.get("filter_value", "").strip().lower()
 
-    all_items = []
-    for items in buckets.values():
-        all_items.extend(items)
+    all_buckets = scrape_and_group_by_limit()
+    filtered_buckets = {}
 
-    if sort in {"bank", "price", "limit", "opened", "deadline", "reporting", "availability"}:
-        reverse = order == "desc"
-        try:
-            if sort in {"price", "limit"}:
-                all_items.sort(key=lambda x: float(x[sort]), reverse=reverse)
-            else:
-                all_items.sort(key=lambda x: str(x[sort]).lower(), reverse=reverse)
-        except Exception as e:
-            print("Sorting error:", e)
+    for limit_range, tradelines in all_buckets.items():
+        filtered = []
+        for t in tradelines:
+            val = filter_value
 
-    headers = {
-        "bank": "Bank Name",
-        "limit": "Credit Limit",
-        "opened": "Date Opened",
-        "deadline": "Purchase Deadline",
-        "reporting": "Reporting Period",
-        "availability": "Availability",
-        "price": "Price"
-    }
+            if filter_type == "bank" and val not in t['bank'].lower():
+                continue
+            elif filter_type == "price":
+                try:
+                    if val.startswith('<'):
+                        if not t['price'] < float(val[1:]): continue
+                    elif val.startswith('>'):
+                        if not t['price'] > float(val[1:]): continue
+                    elif not float(val) == t['price']:
+                        continue
+                except: continue
+            elif filter_type == "limit":
+                try:
+                    if val.startswith('<'):
+                        if not t['limit'] < int(val[1:]): continue
+                    elif val.startswith('>'):
+                        if not t['limit'] > int(val[1:]): continue
+                    elif not int(val) == t['limit']:
+                        continue
+                except: continue
+            elif filter_type == "age":
+                try:
+                    opened_line = t['text'].split('\n')[2]
+                    opened = opened_line.split(": ")[1]  # e.g. "2020 Jun"
+                    year = int(opened.split()[0])
+                    if val.startswith('<'):
+                        if not year < int(val[1:]): continue
+                    elif val.startswith('>'):
+                        if not year > int(val[1:]): continue
+                    elif not int(val) == year:
+                        continue
+                except: continue
+            filtered.append(t)
+        if filtered:
+            filtered_buckets[limit_range] = filtered
 
-    return render_template_string(HOMEPAGE_HTML, all_items=all_items, sort=sort, order=order, headers=headers)
+    return render_template_string(HOMEPAGE_HTML, data=filtered_buckets, filter_type=filter_type, filter_value=filter_value)
 
 @app.route('/buy')
 def buy():
