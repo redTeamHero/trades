@@ -78,4 +78,7 @@ def scrape_and_group_by_limit():
         except Exception:
             continue
 
-    return buckets 
+    unique_banks = sorted(set(t['bank'] for bucket in buckets.values() for t in bucket if t['bank']))
+    years = sorted(set(int(t['opened'].split()[0]) for bucket in buckets.values() for t in bucket if t['opened'] and t['opened'].split()[0].isdigit()), reverse=True)
+
+    return buckets, unique_banks, years 
