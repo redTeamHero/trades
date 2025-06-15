@@ -1,81 +1,68 @@
-import requests
-from bs4 import BeautifulSoup
-import re
+# Updated homepage route: supports dropdown preset values for price, limit, and age
 
-URL = 'https://tradelinesupply.com/pricing/'
+from flask import Flask, request, render_template_string
+from scrape import scrape_and_group_by_limit
 
-def scrape_and_group_by_limit():
-    response = requests.get(URL)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    rows = soup.find_all('tr')
+app = Flask(__name__)
 
-    buckets = {
-        '0-2500': [],
-        '2501-5000': [],
-        '5001-10000': [],
-        '10001+': []
-    }
+@app.route('/')
+def homepage():
+    filter_type = request.args.get("filter_type", "")
+    filter_value = request.args.get("filter_value", "").strip().lower()
 
-    for row in rows:
-        try:
-            product_td = row.find('td', class_='product_data')
-            price_td = row.find('td', class_='product_price')
-            if not product_td or not price_td:
+    all_buckets = scrape_and_group_by_limit()
+    filtered_buckets = {}
+
+    for limit_range, tradelines in all_buckets.items():
+        filtered = []
+        for t in tradelines:
+            if not filter_type or not filter_value:
+                filtered.append(t)
                 continue
 
-            bank_name = product_td.get('data-bankname', '').strip()
-            credit_limit_raw = product_td.get('data-creditlimit', '').strip().replace('$', '').replace(',', '')
-            credit_limit = int(credit_limit_raw) if credit_limit_raw.isdigit() else 0
-            date_opened = product_td.get('data-dateopened', '').strip()
-            purchase_by = product_td.get('data-purchasebydate', '').strip()
-            reporting_period = product_td.get('data-reportingperiod', '').strip()
-            availability = product_td.get('data-availability', '').strip()
+            # BANK NAME
+            if filter_type == "bank":
+                if filter_value == t['bank'].lower():
+                    filtered.append(t)
 
-            price_text = price_td.get_text(strip=True)
-            price_match = re.search(r"\$\s?(\d+(?:,\d{3})*(?:\.\d{2})?)", price_text)
-            if not price_match:
-                continue
-            base_price = float(price_match.group(1).replace(",", ""))
+            # PRICE RANGE
+            elif filter_type == "price":
+                p = t['price']
+                if filter_value == "< 500" and p < 500:
+                    filtered.append(t)
+                elif filter_value == "500 - 1000" and 500 <= p <= 1000:
+                    filtered.append(t)
+                elif filter_value == "> 1000" and p > 1000:
+                    filtered.append(t)
 
-            # Corrected markup logic
-            if base_price < 500:
-                final_price = base_price + 100
-            elif base_price <= 1000:
-                final_price = base_price + 200
-            else:
-                final_price = base_price + 300
+            # CREDIT LIMIT RANGE
+            elif filter_type == "limit":
+                l = t['limit']
+                if filter_value == "< 2500" and l < 2500:
+                    filtered.append(t)
+                elif filter_value == "2501 - 5000" and 2501 <= l <= 5000:
+                    filtered.append(t)
+                elif filter_value == "5001 - 10000" and 5001 <= l <= 10000:
+                    filtered.append(t)
+                elif filter_value == "> 10000" and l > 10000:
+                    filtered.append(t)
 
-            formatted = (
-                f"🏦 Bank: {bank_name}\n"
-                f"💳 Credit Limit: ${credit_limit:,}\n"
-                f"📅 Date Opened: {date_opened}\n"
-                f"🛒 Purchase Deadline: {purchase_by}\n"
-                f"📈 Reporting Period: {reporting_period}\n"
-                f"📦 Availability: {availability}\n"
-                f"💰 Price: ${final_price:,.2f}"
-            )
+            # AGE / DATE OPENED YEAR
+            elif filter_type == "age":
+                try:
+                    year = int(t['opened'].split()[0])
+                    if filter_value == "2024" and year == 2024:
+                        filtered.append(t)
+                    elif filter_value == "2023" and year == 2023:
+                        filtered.append(t)
+                    elif filter_value == "2022" and year == 2022:
+                        filtered.append(t)
+                    elif filter_value == "< 2022" and year < 2022:
+                        filtered.append(t)
+                except:
+                    continue
 
-            item = {
-                'bank': bank_name,
-                'text': formatted,
-                'price': round(final_price, 2),
-                'limit': credit_limit,
-                'opened': date_opened,
-                'deadline': purchase_by,
-                'reporting': reporting_period,
-                'availability': availability
-            }
+        if filtered:
+            filtered_buckets[limit_range] = filtered
 
-            if credit_limit <= 2500:
-                buckets['0-2500'].append(item)
-            elif credit_limit <= 5000:
-                buckets['2501-5000'].append(item)
-            elif credit_limit <= 10000:
-                buckets['5001-10000'].append(item)
-            else:
-                buckets['10001+'].append(item)
-
-        except Exception:
-            continue
-
-    return buckets
+    return render_template_string("FILTER UI WILL BE INSERTED HERE", data=filtered_buckets, filter_type=filter_type, filter_value=filter_value)
