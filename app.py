@@ -333,7 +333,7 @@ def success():
 
 @app.route("/cancel")
 def cancel():
-    return "❌ Purchase canceled.
+    return "❌ Purchase canceled."
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
