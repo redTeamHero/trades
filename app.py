@@ -307,33 +307,7 @@ def send_email_notification(bank, price):
     except Exception as e:
         print("Failed to send order email:", e)
 
-@app.route("/buy/test")
-def test_checkout():
-    checkout_session = stripe.checkout.Session.create(
-        payment_method_types=["card"],
-        line_items=[{
-            "price_data": {
-                "currency": "usd",
-                "unit_amount": 1,  # $1 in cents
-                "product_data": {
-                    "name": "Test Tradeline - $1",
-                },
-            },
-            "quantity": 1,
-        }],
-        mode="payment",
-        success_url=url_for('success', _external=True),
-        cancel_url=url_for('cancel', _external=True),
-    )
-    return redirect(checkout_session.url, code=303)
 
-@app.route("/success")
-def success():
-    return "✅ Test purchase successful."
-
-@app.route("/cancel")
-def cancel():
-    return "❌ Purchase canceled."
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
