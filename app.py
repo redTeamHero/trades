@@ -157,6 +157,7 @@ def homepage():
     all_buckets, bank_options, year_options = scrape_and_group_by_limit()
 
     filtered_buckets = {}
+    all_tradelines = []
 
     for limit_range, tradelines in all_buckets.items():
         filtered = []
@@ -169,39 +170,36 @@ def homepage():
 
             elif filter_type == "price":
                 try:
-                    if val.startswith('<'):
-                        if not t['price'] < float(val[1:]): continue
-                    elif val.startswith('>'):
-                        if not t['price'] > float(val[1:]): continue
-                    elif not float(val) == t['price']:
-                        continue
+                    if val.startswith('<') and not t['price'] < float(val[1:]): continue
+                    elif val.startswith('>') and not t['price'] > float(val[1:]): continue
+                    elif float(val) != t['price']: continue
                 except: continue
+
             elif filter_type == "limit":
                 try:
-                    if val.startswith('<'):
-                        if not t['limit'] < int(val[1:]): continue
-                    elif val.startswith('>'):
-                        if not t['limit'] > int(val[1:]): continue
-                    elif not int(val) == t['limit']:
-                        continue
+                    if val.startswith('<') and not t['limit'] < int(val[1:]): continue
+                    elif val.startswith('>') and not t['limit'] > int(val[1:]): continue
+                    elif int(val) != t['limit']: continue
                 except: continue
+
             elif filter_type == "age":
                 try:
                     opened_line = t['text'].split('\n')[2]
                     opened = opened_line.split(": ")[1]  # e.g. "2020 Jun"
                     year = int(opened.split()[0])
-                    if val.startswith('<'):
-                        if not year < int(val[1:]): continue
-                    elif val.startswith('>'):
-                        if not year > int(val[1:]): continue
-                    elif not int(val) == year:
-                        continue
+                    if val.startswith('<') and not year < int(val[1:]): continue
+                    elif val.startswith('>') and not year > int(val[1:]): continue
+                    elif int(val) != year: continue
                 except: continue
+
             filtered.append(t)
         if filtered:
             filtered_buckets[limit_range] = filtered
-            
-    return render_template_string(HOMEPAGE_HTML, data=filtered_buckets,
+            all_tradelines.extend(filtered)
+
+    return render_template_string(
+        HOMEPAGE_HTML,
+        tradelines=all_tradelines,
         filter_type=filter_type,
         filter_value=filter_value,
         bank_options=bank_options,
