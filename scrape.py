@@ -1,7 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
 import re
-from datetime import datetime
 
 URL = 'https://tradelinesupply.com/pricing/'
 
@@ -24,14 +23,10 @@ def scrape_and_group_by_limit():
             if not product_td or not price_td:
                 continue
 
-            # NEW: Get age from <td class="nowrap row-click">
-            date_cell = row.find('td', class_='nowrap row-click')
-            date_opened = date_cell.get_text(strip=True) if date_cell else 'N/A'
-            age = date_opened if date_opened else "N/A"
-
             bank_name = product_td.get('data-bankname', '').strip()
             credit_limit_raw = product_td.get('data-creditlimit', '').strip().replace('$', '').replace(',', '')
             credit_limit = int(credit_limit_raw) if credit_limit_raw.isdigit() else 0
+            date_opened = product_td.get('data-dateopened', '').strip()
             purchase_by = product_td.get('data-purchasebydate', '').strip()
             reporting_period = product_td.get('data-reportingperiod', '').strip()
             availability = product_td.get('data-availability', '').strip()
@@ -42,7 +37,7 @@ def scrape_and_group_by_limit():
                 continue
             base_price = float(price_match.group(1).replace(",", ""))
 
-            # Simple markup strategy
+            # Corrected markup logic
             if base_price < 500:
                 final_price = base_price + 100
             elif base_price <= 1000:
@@ -61,13 +56,15 @@ def scrape_and_group_by_limit():
             )
 
             item = {
+                'buy_link': f"/buy?bank={bank_name}&price={final_price}",
                 'bank': bank_name,
                 'text': formatted,
-                'price': final_price,
+                'price': round(final_price, 2),
                 'limit': credit_limit,
-                'statement_date': purchase_by,
+                'opened': date_opened,
+                'deadline': purchase_by,
                 'reporting': reporting_period,
-                'age': age
+                'availability': availability
             }
 
             if credit_limit <= 2500:
@@ -79,8 +76,10 @@ def scrape_and_group_by_limit():
             else:
                 buckets['10001+'].append(item)
 
-        except Exception as e:
-            print("Row failed:", e)
+        except Exception:
             continue
 
-    return buckets, list(set([b['bank'] for bucket in buckets.values() for b in bucket if 'bank' in b])), []
+    unique_banks = sorted(set(t['bank'] for bucket in buckets.values() for t in bucket if t['bank']))
+    years = sorted(set(int(t['opened'].split()[0]) for bucket in buckets.values() for t in bucket if t['opened'] and t['opened'].split()[0].isdigit()), reverse=True)
+
+    return buckets, unique_banks, years 
