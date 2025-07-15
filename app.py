@@ -307,7 +307,7 @@ def send_email_notification(bank, price):
     except Exception as e:
         print("Failed to send order email:", e)
 
-    @app.route("/buy/test")
+@app.route("/buy/test")
 def test_checkout():
     checkout_session = stripe.checkout.Session.create(
         payment_method_types=["card"],
