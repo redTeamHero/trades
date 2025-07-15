@@ -22,80 +22,130 @@ HOMEPAGE_HTML = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Tradeline Catalog</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tradeline Catalog</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#2563eb',
+            secondary: '#f3f4f6'
+          }
+        }
+      }
+    }
+  </script>
 </head>
-<body class="bg-gray-100">
+<body class="bg-gradient-to-br from-white via-gray-100 to-gray-200 min-h-screen font-sans">
 
-    <div class="max-w-7xl mx-auto px-4 py-6">
-        <h1 class="text-4xl font-bold text-center mb-6">📊 Browse Tradelines</h1>
+  <!-- Header -->
+  <header class="text-center py-8 bg-white/70 backdrop-blur shadow-md">
+    <h1 class="text-4xl font-extrabold tracking-tight text-primary flex items-center justify-center gap-2">
+      <img src="https://img.icons8.com/emoji/48/bar-chart-emoji.png" class="h-8"/> Browse Tradelines
+    </h1>
+    <p class="text-sm text-gray-500">Filter, sort, and find the best tradelines instantly</p>
+  </header>
 
-        <!-- Filters -->
-        <div class="flex flex-wrap justify-between items-center mb-4">
-            <input type="text" id="search" placeholder="Search by bank..." class="w-full md:w-1/3 px-4 py-2 rounded border shadow-sm">
-            <select id="sort" class="w-full md:w-1/4 px-4 py-2 rounded border shadow-sm mt-2 md:mt-0">
-                <option value="">Sort by</option>
-                <option value="price">Price</option>
-                <option value="limit">Limit</option>
-                <option value="age">Age</option>
-            </select>
-        </div>
-
-        <!-- Tradeline Grid -->
-        <div id="tradeline-container" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {% for t in tradelines %}
-            <div class="bg-white shadow-md rounded-xl p-4 hover:shadow-lg transition">
-                <h2 class="text-xl font-semibold">{{ t.bank }}</h2>
-                <p class="text-sm text-gray-600 mb-2">{{ t.age }} old | ${{ t.limit }} limit</p>
-                <p class="text-lg font-bold text-green-600">${{ t.price }}</p>
-                <p class="text-xs text-gray-400">Statement: {{ t.statement_date }}</p>
-                <p class="text-xs text-gray-400">Reports to: {{ t.reporting }}</p>
-                <a href="{{ t.buy_link }}" class="inline-block mt-3 bg-blue-500 text-white text-sm px-4 py-2 rounded hover:bg-blue-600">Buy Now</a>
-            </div>
-            {% endfor %}
-        </div>
+  <!-- Search and Sort -->
+  <div class="max-w-6xl mx-auto px-4 py-6">
+    <div class="flex flex-col md:flex-row gap-4 mb-6 bg-white/80 p-4 rounded-xl shadow">
+      <input type="text" id="search" placeholder="🔍 Search by bank..." class="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none">
+      <select id="sort" class="w-full md:w-60 px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none">
+        <option value="">Sort by</option>
+        <option value="price">Price</option>
+        <option value="limit">Limit</option>
+        <option value="age">Age</option>
+      </select>
     </div>
 
-    <script>
-        const searchInput = document.getElementById('search');
-        const sortSelect = document.getElementById('sort');
-        const container = document.getElementById('tradeline-container');
-        const cards = Array.from(container.children);
+    <!-- Tradeline Grid -->
+    <div id="tradeline-container" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"></div>
 
-        searchInput.addEventListener('input', filter);
-        sortSelect.addEventListener('change', filter);
+    <!-- Pagination -->
+    <div class="flex justify-center mt-8 space-x-4">
+      <button id="prev" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition">← Prev</button>
+      <button id="next" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition">Next →</button>
+    </div>
+  </div>
 
-        function filter() {
-            const term = searchInput.value.toLowerCase();
-            const sortBy = sortSelect.value;
+  <!-- Floating Mobile Buy Button -->
+  <a href="#" id="mobile-buy" class="fixed bottom-4 right-4 bg-primary text-white px-6 py-3 rounded-full shadow-lg md:hidden hidden z-50 hover:bg-blue-700 transition">Buy Now</a>
 
-            let filtered = cards.filter(card => {
-                return card.querySelector('h2').innerText.toLowerCase().includes(term);
-            });
+  <script>
+    const tradelines = {{ tradelines|tojson }};
+    const container = document.getElementById('tradeline-container');
+    const searchInput = document.getElementById('search');
+    const sortSelect = document.getElementById('sort');
+    const mobileBuy = document.getElementById('mobile-buy');
 
-            if (sortBy === 'price') {
-                filtered.sort((a, b) => getPrice(a) - getPrice(b));
-            } else if (sortBy === 'limit') {
-                filtered.sort((a, b) => getLimit(a) - getLimit(b));
-            }
+    let currentPage = 1;
+    const perPage = 10;
+    let filteredData = tradelines;
 
-            container.innerHTML = '';
-            filtered.forEach(card => container.appendChild(card));
-        }
+    function renderTradelines(data) {
+      container.innerHTML = '';
+      const paginated = data.slice((currentPage - 1) * perPage, currentPage * perPage);
 
-        function getPrice(card) {
-            return parseFloat(card.querySelector('.text-green-600').innerText.replace('$', '')) || 0;
-        }
+      if (paginated.length === 0) {
+        container.innerHTML = `<div class="col-span-full text-center text-gray-500 text-lg py-10">🔍 No tradelines found. Try a different search or filter.</div>`;
+        mobileBuy.classList.add('hidden');
+        return;
+      }
 
-        function getLimit(card) {
-            const text = card.querySelector('p').innerText;
-            const match = text.match(/\$([0-9,]+)/);
-            return match ? parseInt(match[1].replace(',', '')) : 0;
-        }
-    </script>
+      paginated.forEach(t => {
+        const el = document.createElement('div');
+        el.className = "bg-white shadow-lg rounded-2xl p-5 transition hover:scale-[1.01] duration-200 flex flex-col justify-between";
+        el.innerHTML = `
+          <div>
+            <h2 class="text-xl font-bold text-gray-800 flex items-center gap-1">🏦 ${t.bank}</h2>
+            <p class="text-sm text-gray-500 mb-1">💳 ${t.age} old · 💰 $${t.limit} limit</p>
+            <p class="text-lg font-bold text-green-600">$${t.price}</p>
+            <p class="text-xs text-gray-400">📅 Statement: ${t.statement_date}</p>
+            <p class="text-xs text-gray-400">🧾 Reports to: ${t.reporting}</p>
+          </div>
+          <a href="${t.buy_link}" class="mt-4 inline-block bg-primary text-white text-sm text-center px-4 py-2 rounded-lg hover:bg-blue-700 transition">Buy Now</a>
+        `;
+        container.appendChild(el);
+      });
+
+      mobileBuy.href = paginated[0].buy_link || '#';
+      mobileBuy.classList.remove('hidden');
+    }
+
+    function filterAndSort() {
+      filteredData = tradelines.filter(t => t.bank.toLowerCase().includes(searchInput.value.toLowerCase()));
+      const sortBy = sortSelect.value;
+      if (sortBy === 'price') filteredData.sort((a, b) => a.price - b.price);
+      if (sortBy === 'limit') filteredData.sort((a, b) => a.limit - b.limit);
+      if (sortBy === 'age') filteredData.sort((a, b) => parseInt(b.age) - parseInt(a.age));
+      renderTradelines(filteredData);
+    }
+
+    document.getElementById('prev').addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderTradelines(filteredData);
+      }
+    });
+
+    document.getElementById('next').addEventListener('click', () => {
+      if ((currentPage * perPage) < filteredData.length) {
+        currentPage++;
+        renderTradelines(filteredData);
+      }
+    });
+
+    searchInput.addEventListener('input', () => { currentPage = 1; filterAndSort(); });
+    sortSelect.addEventListener('change', () => { currentPage = 1; filterAndSort(); });
+
+    filterAndSort();
+  </script>
 </body>
 </html>
+
 
 """
 
