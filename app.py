@@ -23,56 +23,43 @@ HOMEPAGE_HTML = """
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tradeline Catalog</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            primary: '#2563eb',
-            secondary: '#f3f4f6'
-          }
-        }
-      }
-    }
-  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body class="bg-gradient-to-br from-white via-gray-100 to-gray-200 min-h-screen font-sans">
+<body class="bg-gray-100">
+  <div class="max-w-7xl mx-auto px-4 py-6">
+    <h1 class="text-4xl font-bold text-center mb-6">📊 Browse Tradelines</h1>
 
-  <!-- Header -->
-  <header class="text-center py-8 bg-white/70 backdrop-blur shadow-md">
-    <h1 class="text-4xl font-extrabold tracking-tight text-primary flex items-center justify-center gap-2">
-      <img src="https://img.icons8.com/emoji/48/bar-chart-emoji.png" class="h-8"/> Browse Tradelines
-    </h1>
-    <p class="text-sm text-gray-500">Filter, sort, and find the best tradelines instantly</p>
-  </header>
-
-  <!-- Search and Sort -->
-  <div class="max-w-6xl mx-auto px-4 py-6">
-    <div class="flex flex-col md:flex-row gap-4 mb-6 bg-white/80 p-4 rounded-xl shadow">
-      <input type="text" id="search" placeholder="🔍 Search by bank..." class="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none">
-      <select id="sort" class="w-full md:w-60 px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none">
+    <!-- Filters -->
+    <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
+      <input type="text" id="search" placeholder="Search by bank..." class="flex-1 min-w-[200px] px-4 py-2 rounded border shadow-sm focus:ring-2 focus:ring-blue-500">
+      <select id="sort" class="flex-1 min-w-[150px] px-4 py-2 rounded border shadow-sm focus:ring-2 focus:ring-blue-500">
         <option value="">Sort by</option>
-        <option value="price">Price</option>
-        <option value="limit">Limit</option>
-        <option value="age">Age</option>
+        <option value="price-asc">Price ↑</option>
+        <option value="price-desc">Price ↓</option>
+        <option value="limit-asc">Limit ↑</option>
+        <option value="limit-desc">Limit ↓</option>
+        <option value="age-asc">Age ↑</option>
+        <option value="age-desc">Age ↓</option>
       </select>
     </div>
 
+    <!-- Bank List -->
+    <div id="bank-list" class="mb-4 text-sm text-gray-600 italic"></div>
+
     <!-- Tradeline Grid -->
-    <div id="tradeline-container" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"></div>
+    <div id="tradeline-container" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3"></div>
 
     <!-- Pagination -->
-    <div class="flex justify-center mt-8 space-x-4">
-      <button id="prev" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition">← Prev</button>
-      <button id="next" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition">Next →</button>
+    <div class="flex justify-center mt-6">
+      <button id="prev" class="px-4 py-2 mx-1 bg-gray-300 hover:bg-gray-400 transition rounded">Prev</button>
+      <button id="next" class="px-4 py-2 mx-1 bg-gray-300 hover:bg-gray-400 transition rounded">Next</button>
     </div>
   </div>
 
-  <!-- Floating Mobile Buy Button -->
-  <a href="#" id="mobile-buy" class="fixed bottom-4 right-4 bg-primary text-white px-6 py-3 rounded-full shadow-lg md:hidden hidden z-50 hover:bg-blue-700 transition">Buy Now</a>
+  <!-- Floating Buy Button on Mobile -->
+  <a href="#" id="mobile-buy" class="fixed bottom-5 right-5 bg-blue-600 text-white text-sm px-4 py-2 rounded-full shadow-lg block md:hidden hidden z-50">Buy Now</a>
 
   <script>
     const tradelines = {{ tradelines|tojson }};
@@ -80,10 +67,16 @@ HOMEPAGE_HTML = """
     const searchInput = document.getElementById('search');
     const sortSelect = document.getElementById('sort');
     const mobileBuy = document.getElementById('mobile-buy');
+    const bankList = document.getElementById('bank-list');
 
     let currentPage = 1;
     const perPage = 10;
     let filteredData = tradelines;
+
+    function renderBankList(data) {
+      const banks = [...new Set(data.map(t => t.bank))].sort();
+      bankList.textContent = `Available Banks: ${banks.join(', ')}`;
+    }
 
     function renderTradelines(data) {
       container.innerHTML = '';
@@ -97,16 +90,14 @@ HOMEPAGE_HTML = """
 
       paginated.forEach(t => {
         const el = document.createElement('div');
-        el.className = "bg-white shadow-lg rounded-2xl p-5 transition hover:scale-[1.01] duration-200 flex flex-col justify-between";
+        el.className = "bg-white shadow-md rounded-xl p-4 hover:shadow-lg transition transform hover:scale-[1.01] duration-200";
         el.innerHTML = `
-          <div>
-            <h2 class="text-xl font-bold text-gray-800 flex items-center gap-1">🏦 ${t.bank}</h2>
-            <p class="text-sm text-gray-500 mb-1">💳 ${t.age} old · 💰 $${t.limit} limit</p>
-            <p class="text-lg font-bold text-green-600">$${t.price}</p>
-            <p class="text-xs text-gray-400">📅 Statement: ${t.statement_date}</p>
-            <p class="text-xs text-gray-400">🧾 Reports to: ${t.reporting}</p>
-          </div>
-          <a href="${t.buy_link}" class="mt-4 inline-block bg-primary text-white text-sm text-center px-4 py-2 rounded-lg hover:bg-blue-700 transition">Buy Now</a>
+          <h2 class="text-xl font-semibold">${t.bank}</h2>
+          <p class="text-sm text-gray-600 mb-2">${t.age} | $${t.limit} limit</p>
+          <p class="text-lg font-bold text-green-600">$${t.price}</p>
+          <p class="text-xs text-gray-400">Statement: ${t.statement_date}</p>
+          <p class="text-xs text-gray-400">Reports to: ${t.reporting}</p>
+          <a href="${t.buy_link}" class="inline-block mt-3 bg-blue-500 text-white text-sm px-4 py-2 rounded hover:bg-blue-600 transition">Buy Now</a>
         `;
         container.appendChild(el);
       });
@@ -118,9 +109,15 @@ HOMEPAGE_HTML = """
     function filterAndSort() {
       filteredData = tradelines.filter(t => t.bank.toLowerCase().includes(searchInput.value.toLowerCase()));
       const sortBy = sortSelect.value;
-      if (sortBy === 'price') filteredData.sort((a, b) => a.price - b.price);
-      if (sortBy === 'limit') filteredData.sort((a, b) => a.limit - b.limit);
-      if (sortBy === 'age') filteredData.sort((a, b) => parseInt(b.age) - parseInt(a.age));
+
+      if (sortBy === 'price-asc') filteredData.sort((a, b) => a.price - b.price);
+      if (sortBy === 'price-desc') filteredData.sort((a, b) => b.price - a.price);
+      if (sortBy === 'limit-asc') filteredData.sort((a, b) => a.limit - b.limit);
+      if (sortBy === 'limit-desc') filteredData.sort((a, b) => b.limit - a.limit);
+      if (sortBy === 'age-asc') filteredData.sort((a, b) => a.age.localeCompare(b.age));
+      if (sortBy === 'age-desc') filteredData.sort((a, b) => b.age.localeCompare(a.age));
+
+      renderBankList(filteredData);
       renderTradelines(filteredData);
     }
 
@@ -145,7 +142,6 @@ HOMEPAGE_HTML = """
   </script>
 </body>
 </html>
-
 
 """
 
