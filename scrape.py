@@ -1,64 +1,85 @@
 import requests
 from bs4 import BeautifulSoup
+import re
+
+URL = 'https://tradelinesupply.com/pricing/'
 
 def scrape_and_group_by_limit():
-    URL = "https://tradelinesupply.com/inventory/"
     response = requests.get(URL)
-    soup = BeautifulSoup(response.text, "html.parser")
-    table = soup.find("table", class_="tablepress")
+    soup = BeautifulSoup(response.text, 'html.parser')
+    rows = soup.find_all('tr')
 
-    all_tradelines = []
-    bank_options = set()
-    year_options = set()
+    buckets = {
+        '0-2500': [],
+        '2501-5000': [],
+        '5001-10000': [],
+        '10001+': []
+    }
 
-    for row in table.find_all("tr")[1:]:
-        cols = row.find_all("td")
-        if len(cols) < 7:
-            continue
-
+    for row in rows:
         try:
-            bank = cols[0].text.strip()
-            age_cell = row.find("td", class_="nowrap row-click")
-            age = age_cell.text.strip() if age_cell else "undefined"
+            product_td = row.find('td', class_='product_data')
+            price_td = row.find('td', class_='product_price')
+            if not product_td or not price_td:
+                continue
 
-            limit = int(cols[3].text.strip().replace("$", "").replace(",", "") or 0)
-            statement_date = cols[4].text.strip()
-            reporting = cols[5].text.strip()
-            price = float(cols[6].text.strip().replace("$", "").replace(",", "") or 0.0)
+            bank_name = product_td.get('data-bankname', '').strip()
+            credit_limit_raw = product_td.get('data-creditlimit', '').strip().replace('$', '').replace(',', '')
+            credit_limit = int(credit_limit_raw) if credit_limit_raw.isdigit() else 0
+            date_opened = product_td.get('data-dateopened', '').strip()
+            purchase_by = product_td.get('data-purchasebydate', '').strip()
+            reporting_period = product_td.get('data-reportingperiod', '').strip()
+            availability = product_td.get('data-availability', '').strip()
 
-            if limit < 2000:
-                limit_range = "Under $2,000"
-            elif limit < 5000:
-                limit_range = "$2,000–4,999"
-            elif limit < 10000:
-                limit_range = "$5,000–9,999"
+            price_text = price_td.get_text(strip=True)
+            price_match = re.search(r"\$\s?(\d+(?:,\d{3})*(?:\.\d{2})?)", price_text)
+            if not price_match:
+                continue
+            base_price = float(price_match.group(1).replace(",", ""))
+
+            # Corrected markup logic
+            if base_price < 500:
+                final_price = base_price + 100
+            elif base_price <= 1000:
+                final_price = base_price + 200
             else:
-                limit_range = "$10,000+"
+                final_price = base_price + 300
 
-            tradeline = {
-                "bank": bank,
-                "limit": limit,
-                "price": price,
-                "age": age,  # ← This is a date string like "2020 Jul"
-                "reporting": reporting,
-                "statement_date": statement_date,
-                "buy_link": f"/buy?bank={bank}&price={price}"
+            formatted = (
+                f"🏦 Bank: {bank_name}\n"
+                f"💳 Credit Limit: ${credit_limit:,}\n"
+                f"📅 Date Opened: {date_opened}\n"
+                f"🛒 Purchase Deadline: {purchase_by}\n"
+                f"📈 Reporting Period: {reporting_period}\n"
+                f"📦 Availability: {availability}\n"
+                f"💰 Price: ${final_price:,.2f}"
+            )
+
+            item = {
+                'buy_link': f"/buy?bank={bank_name}&price={final_price}",
+                'bank': bank_name,
+                'text': formatted,
+                'price': round(final_price, 2),
+                'limit': credit_limit,
+                'opened': date_opened,
+                'deadline': purchase_by,
+                'reporting': reporting_period,
+                'availability': availability
             }
 
-            bank_options.add(bank)
-            if age and age != "undefined":
-                year = age.split()[0]
-                if year.isdigit():
-                    year_options.add(year)
+            if credit_limit <= 2500:
+                buckets['0-2500'].append(item)
+            elif credit_limit <= 5000:
+                buckets['2501-5000'].append(item)
+            elif credit_limit <= 10000:
+                buckets['5001-10000'].append(item)
+            else:
+                buckets['10001+'].append(item)
 
-            all_tradelines.append((limit_range, tradeline))
-
-        except Exception as e:
-            print(f"[⚠️] Skipped a row due to error: {e}")
+        except Exception:
             continue
 
-    grouped = {}
-    for limit_range, tradeline in all_tradelines:
-        grouped.setdefault(limit_range, []).append(tradeline)
+    unique_banks = sorted(set(t['bank'] for bucket in buckets.values() for t in bucket if t['bank']))
+    years = sorted(set(int(t['opened'].split()[0]) for bucket in buckets.values() for t in bucket if t['opened'] and t['opened'].split()[0].isdigit()), reverse=True)
 
-    return grouped, sorted(bank_options), sorted(year_options)
+    return buckets, unique_banks, years 
