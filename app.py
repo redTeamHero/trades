@@ -20,164 +20,83 @@ orders = []
 
 HOMEPAGE_HTML = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Tradeline Marketplace</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            margin: 20px;
-            background-color: #f2f4f8;
-        }
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-        }
-        .filter-box {
-            background: #ffffff;
-            padding: 15px;
-            border-radius: 6px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            margin-bottom: 25px;
-            text-align: center;
-        }
-        .filter-box select, .filter-box input {
-            padding: 8px;
-            margin: 5px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.05);
-        }
-        th, td {
-            padding: 12px;
-            text-align: center;
-            border-bottom: 1px solid #eee;
-        }
-        th {
-            background-color: #34495e;
-            color: white;
-        }
-        tr:hover {
-            background-color: #f9f9f9;
-        }
-        .buy-btn {
-            background-color: #27ae60;
-            color: white;
-            border: none;
-            padding: 8px 14px;
-            border-radius: 5px;
-            text-decoration: none;
-            font-weight: bold;
-        }
-    </style>
-    <script>
-        function updateFilterField() {
-            const filterType = document.getElementById('filter_type').value;
-            const placeholderMap = {
-                'bank': 'e.g., Chase',
-                'price': 'e.g., < 500',
-                'limit': 'e.g., > 5000',
-                'age': 'e.g., 2020 or < 2019'
-            };
-            document.getElementById('filter_value').placeholder = placeholderMap[filterType] || '';
-        }
-    </script>
+    <meta charset="UTF-8">
+    <title>Tradeline Catalog</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <h1>Available Tradelines</h1>
+<body class="bg-gray-100">
 
-    <div class="filter-box">
-        <form method="get">
-            <label>Filter By:
-                <select name="filter_type" id="filter_type" onchange="updateValueDropdown()">
-                    <option value="">-- Select --</option>
-                    <option value="bank" {% if filter_type == 'bank' %}selected{% endif %}>Bank Name</option>
-                    <option value="price" {% if filter_type == 'price' %}selected{% endif %}>Price</option>
-                    <option value="limit" {% if filter_type == 'limit' %}selected{% endif %}>Credit Limit</option>
-                    <option value="age" {% if filter_type == 'age' %}selected{% endif %}>Age</option>
-                </select>
-            </label>
-    
-            <label>
-                <select name="filter_value" id="filter_value">
-                    <!-- Options loaded dynamically by JS -->
-                </select>
-            </label>
-    
-            <button type="submit">Apply Filter</button>
-            <a href="/" style="margin-left: 10px;">Reset</a>
-        </form>
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <h1 class="text-4xl font-bold text-center mb-6">📊 Browse Tradelines</h1>
+
+        <!-- Filters -->
+        <div class="flex flex-wrap justify-between items-center mb-4">
+            <input type="text" id="search" placeholder="Search by bank..." class="w-full md:w-1/3 px-4 py-2 rounded border shadow-sm">
+            <select id="sort" class="w-full md:w-1/4 px-4 py-2 rounded border shadow-sm mt-2 md:mt-0">
+                <option value="">Sort by</option>
+                <option value="price">Price</option>
+                <option value="limit">Limit</option>
+                <option value="age">Age</option>
+            </select>
+        </div>
+
+        <!-- Tradeline Grid -->
+        <div id="tradeline-container" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {% for t in tradelines %}
+            <div class="bg-white shadow-md rounded-xl p-4 hover:shadow-lg transition">
+                <h2 class="text-xl font-semibold">{{ t.bank }}</h2>
+                <p class="text-sm text-gray-600 mb-2">{{ t.age }} old | ${{ t.limit }} limit</p>
+                <p class="text-lg font-bold text-green-600">${{ t.price }}</p>
+                <p class="text-xs text-gray-400">Statement: {{ t.statement_date }}</p>
+                <p class="text-xs text-gray-400">Reports to: {{ t.reporting }}</p>
+                <a href="{{ t.buy_link }}" class="inline-block mt-3 bg-blue-500 text-white text-sm px-4 py-2 rounded hover:bg-blue-600">Buy Now</a>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Bank Name</th>
-                <th>Credit Limit</th>
-                <th>Date Opened</th>
-                <th>Purchase Deadline</th>
-                <th>Reporting Period</th>
-                <th>Availability</th>
-                <th>Price</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for limit_range, tradelines in data.items() %}
-            {% for item in tradelines %}
-                <tr>
-                    <td>{{ item['bank'] }}</td>
-                    <td>${{ "{:,}".format(item['limit']) }}</td>
-                    <td>{{ item['text'].split('\\n')[2].split(': ')[1] }}</td>
-                    <td>{{ item['text'].split('\\n')[3].split(': ')[1] }}</td>
-                    <td>{{ item['text'].split('\\n')[4].split(': ')[1] }}</td>
-                    <td>{{ item['text'].split('\\n')[5].split(': ')[1] }}</td>
-                    <td>${{ "%.2f"|format(item['price']) }}</td>
-                    <td><a href="/buy?bank={{ item['bank'] | urlencode }}&price={{ item['price'] }}" class="buy-btn">Buy Now</a></td>
-                </tr>
-            {% endfor %}
-        {% endfor %}
-        </tbody>
-    </table>
     <script>
-    const bankOptions = {{ bank_options|tojson }};
-    const yearOptions = {{ year_options|tojson }};
+        const searchInput = document.getElementById('search');
+        const sortSelect = document.getElementById('sort');
+        const container = document.getElementById('tradeline-container');
+        const cards = Array.from(container.children);
 
-    const optionsMap = {
-        'bank': bankOptions,
-        'price': ['< 500', '500 - 1000', '> 1000'],
-        'limit': ['< 2500', '2501 - 5000', '5001 - 10000', '> 10000'],
-        'age': yearOptions.map(y => y.toString()).concat('< 2022')
-    };
+        searchInput.addEventListener('input', filter);
+        sortSelect.addEventListener('change', filter);
 
-    function updateValueDropdown() {
-        const typeSelect = document.getElementById('filter_type');
-        const valueSelect = document.getElementById('filter_value');
-        const selectedType = typeSelect.value;
+        function filter() {
+            const term = searchInput.value.toLowerCase();
+            const sortBy = sortSelect.value;
 
-        valueSelect.innerHTML = '';
-
-        if (optionsMap[selectedType]) {
-            optionsMap[selectedType].forEach(val => {
-                const opt = document.createElement('option');
-                opt.value = val.toLowerCase();
-                opt.textContent = val;
-                valueSelect.appendChild(opt);
+            let filtered = cards.filter(card => {
+                return card.querySelector('h2').innerText.toLowerCase().includes(term);
             });
+
+            if (sortBy === 'price') {
+                filtered.sort((a, b) => getPrice(a) - getPrice(b));
+            } else if (sortBy === 'limit') {
+                filtered.sort((a, b) => getLimit(a) - getLimit(b));
+            }
+
+            container.innerHTML = '';
+            filtered.forEach(card => container.appendChild(card));
         }
-    }
 
-    document.addEventListener('DOMContentLoaded', updateValueDropdown);
-</script>
+        function getPrice(card) {
+            return parseFloat(card.querySelector('.text-green-600').innerText.replace('$', '')) || 0;
+        }
 
-
+        function getLimit(card) {
+            const text = card.querySelector('p').innerText;
+            const match = text.match(/\$([0-9,]+)/);
+            return match ? parseInt(match[1].replace(',', '')) : 0;
+        }
+    </script>
 </body>
 </html>
+
 """
 
 @app.route('/')
