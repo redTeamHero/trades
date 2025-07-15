@@ -7,7 +7,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
-stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+stripe.api_key = os.environ.get("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", "").strip()
 
 OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "youremail@example.com")
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
